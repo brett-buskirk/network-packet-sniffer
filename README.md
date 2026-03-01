@@ -1,6 +1,6 @@
 # Network Packet Sniffer
 
-A cross-platform packet capture utility that decodes and displays network traffic. Built with Python using raw sockets.
+A cross-platform packet capture utility that decodes and displays network traffic. Built with Python using raw sockets — no third-party dependencies required.
 
 ## Features
 
@@ -11,94 +11,101 @@ A cross-platform packet capture utility that decodes and displays network traffi
 - **Statistics**: Track packet counts, bytes, protocols, and top talkers
 - **Hex Dump**: Optional hex dump display for packet inspection
 - **Cross-Platform**: Works on Linux and Windows
+- **Auto-elevation**: On Linux, automatically re-runs under `sudo` if needed — just run `netsniff`
 
 ## Requirements
 
-- Python 3.6+
+- Python 3.10+
 - Root/Administrator privileges (required for raw sockets)
 
 ## Installation
 
 ```bash
-git clone https://github.com/brett-buskirk/sniffer.git
-cd sniffer
+pipx install network-packet-sniffer
 ```
 
-No additional dependencies required - uses only Python standard library.
+Or with pip:
+
+```bash
+pip install network-packet-sniffer
+```
 
 ## Usage
 
 ```bash
-sudo python3 sniffer.py [options]
+netsniff [options]
 ```
+
+On Linux, if you are not already root the tool will automatically re-launch itself under `sudo` and prompt for your password. On Windows, run your terminal as Administrator.
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
-| `--host`, `-H` | Host IP address to listen on (default: auto-detect) |
-| `--count`, `-c` | Number of packets to capture (0 = unlimited) |
-| `--protocol`, `-p` | Filter by protocol: `tcp`, `udp`, or `icmp` |
-| `--port` | Filter by port number (source or destination) |
-| `--src-ip` | Filter by source IP address |
-| `--dst-ip` | Filter by destination IP address |
-| `--output`, `-o` | Output format: `human`, `json`, or `raw` |
-| `--hex`, `-x` | Show hex dump of packets |
-| `--save`, `-s` | Save packets to pcap file |
-| `--quiet`, `-q` | Suppress output, only show statistics |
-| `--no-stats` | Do not show statistics at end |
-| `--interface`, `-i` | Network interface to capture on (Linux only, default: auto-detect) |
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--host` | `-H` | IP address to listen on (default: auto-detect) |
+| `--count` | `-c` | Number of packets to capture (0 = unlimited) |
+| `--protocol` | `-p` | Filter by protocol: `tcp`, `udp`, or `icmp` |
+| `--port` | | Filter by port number (source or destination) |
+| `--src-ip` | | Filter by source IP address |
+| `--dst-ip` | | Filter by destination IP address |
+| `--output` | `-o` | Output format: `human`, `json`, or `raw` (default: `human`) |
+| `--hex` | `-x` | Include hex dump in human output |
+| `--save` | `-s` | Save packets to a pcap file |
+| `--quiet` | `-q` | Suppress per-packet output; only show statistics |
+| `--no-stats` | | Do not print statistics on exit |
+| `--interface` | `-i` | Network interface to capture on (Linux only, default: auto-detect) |
+| `--version` | | Show version and exit |
 
 ### Examples
 
 ```bash
 # Capture packets continuously until Ctrl+C
-sudo python3 sniffer.py
+netsniff
 
-# Capture exactly 10 packets
-sudo python3 sniffer.py --count 10
+# Capture exactly 10 packets then exit
+netsniff --count 10
 
 # Capture only TCP traffic
-sudo python3 sniffer.py --protocol tcp
+netsniff --protocol tcp
 
 # Capture HTTP traffic (port 80)
-sudo python3 sniffer.py --protocol tcp --port 80
+netsniff --protocol tcp --port 80
 
 # Capture HTTPS traffic with hex dump
-sudo python3 sniffer.py --protocol tcp --port 443 --hex
+netsniff --protocol tcp --port 443 --hex
 
-# Output in JSON format (useful for scripting)
-sudo python3 sniffer.py --output json --count 5
+# Output in JSON format (useful for scripting or piping to jq)
+netsniff --output json --count 5
 
-# Save capture to pcap file for Wireshark
-sudo python3 sniffer.py --save capture.pcap --count 100
+# Save a capture to a pcap file for Wireshark
+netsniff --save capture.pcap --count 100
 
-# Quiet mode - only show statistics
-sudo python3 sniffer.py --quiet --count 50
+# Quiet mode — only show the statistics summary
+netsniff --quiet --count 50
 
-# Filter by specific source IP
-sudo python3 sniffer.py --src-ip 192.168.1.100
+# Filter by a specific source IP
+netsniff --src-ip 192.168.1.100
 
 # Capture on a specific network interface
-sudo python3 sniffer.py --interface eth0
+netsniff --interface eth0
 ```
 
 ### Capturing Localhost Traffic
 
-To capture traffic from local development servers, use the loopback interface:
+To inspect traffic from a local development server, bind to the loopback interface:
 
 ```bash
-# Capture all localhost traffic
-sudo python3 sniffer.py --interface lo
+# Capture all loopback traffic
+netsniff --interface lo
 
-# Capture traffic on a specific port (e.g., dev server on port 3000)
-sudo python3 sniffer.py --interface lo --port 3000
+# Capture traffic on a specific port (e.g. a dev server on port 3000)
+netsniff --interface lo --port 3000
 
 # Capture localhost API traffic on port 8080
-sudo python3 sniffer.py --interface lo --port 8080 --protocol tcp
+netsniff --interface lo --port 8080 --protocol tcp
 
-# Save localhost traffic for analysis
-sudo python3 sniffer.py -i lo --port 5174 --save localhost.pcap
+# Save localhost traffic to a pcap file
+netsniff --interface lo --port 5174 --save localhost.pcap
 ```
 
 ## Sample Output
@@ -154,15 +161,68 @@ Top 5 Destination IPs:
 ## Platform Notes
 
 ### Linux
-- Requires root privileges (`sudo`)
 - Uses `AF_PACKET` sockets to capture all IP traffic (TCP, UDP, ICMP)
 - Supports interface selection with `--interface` (e.g., `eth0`, `lo`, `wlan0`)
-- Auto-detects default interface from routing table
+- Auto-detects the default interface from the routing table
+- Automatically re-runs under `sudo` if not already root
 
 ### Windows
-- Requires Administrator privileges
-- Uses `AF_INET` raw sockets with promiscuous mode enabled via `SIO_RCVALL`
-- Binds to IP address instead of interface name
+- Requires running the terminal as Administrator
+- Uses `AF_INET` raw sockets with promiscuous mode (`SIO_RCVALL`)
+- Binds to an IP address rather than an interface name
+
+## Development
+
+Clone the repo and set up a virtual environment:
+
+```bash
+git clone https://github.com/brett-buskirk/network-packet-sniffer.git
+cd network-packet-sniffer
+python3 -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+```
+
+### Running the test suite
+
+The unit tests cover packet decoding, filtering, output formatting, and statistics. No root privileges or live network are required.
+
+```bash
+.venv/bin/pytest
+```
+
+### Local install testing
+
+Before publishing to PyPI, verify the full install experience locally using one of the following approaches.
+
+**Install directly from the project directory** (quickest):
+
+```bash
+pipx install .
+netsniff --version
+netsniff --count 5
+```
+
+To reinstall after making changes:
+
+```bash
+pipx install --force .
+```
+
+**Install from the built wheel** (closest to what PyPI users get):
+
+```bash
+pyproject-build
+pipx install dist/network_packet_sniffer-0.1.0-py3-none-any.whl --force
+```
+
+**Dry run via TestPyPI** (full end-to-end without touching the real index):
+
+```bash
+twine upload --repository testpypi dist/*
+pipx install --index-url https://test.pypi.org/simple/ network-packet-sniffer
+```
+
+TestPyPI ([test.pypi.org](https://test.pypi.org)) is a separate sandbox with its own account and API token.
 
 ## License
 
